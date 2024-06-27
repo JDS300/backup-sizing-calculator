@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Sizing Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .output {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Backup Sizing Calculator</h1>
+        <div class="input-group">
+            <label for="serverName">Server Name:</label>
+            <input type="text" id="serverName" placeholder="Enter server name">
+        </div>
+        <div class="input-group">
+            <label for="totalStorage">Total Storage (GB):</label>
+            <input type="number" id="totalStorage" placeholder="Enter total storage in GB">
+        </div>
+        <div class="input-group">
+            <label for="years">Number of Years:</label>
+            <input type="number" id="years" placeholder="Enter number of years" value="1">
+        </div>
+        <div class="input-group">
+            <label for="chargeableStorage">Chargeable Storage (GB):</label>
+            <input type="number" id="chargeableStorage" readonly>
+        </div>
+        <div class="input-group">
+            <label for="totalCharge">Total Charge ($):</label>
+            <input type="number" id="totalCharge" readonly>
+        </div>
+        <div class="input-group">
+            <label for="monthlyCharge">Monthly Charge ($):</label>
+            <input type="number" id="monthlyCharge" readonly>
+        </div>
+        <button id="exportBtn">Export to CSV</button>
+    </div>
+
+    <script>
+        const totalStorageInput = document.getElementById('totalStorage');
+        const yearsInput = document.getElementById('years');
+        const chargeableStorageInput = document.getElementById('chargeableStorage');
+        const totalChargeInput = document.getElementById('totalCharge');
+        const monthlyChargeInput = document.getElementById('monthlyCharge');
+        const exportBtn = document.getElementById('exportBtn');
+
+        const calculateCharges = () => {
+            const totalStorage = parseFloat(totalStorageInput.value);
+            const years = parseInt(yearsInput.value);
+            let futureStorage = totalStorage;
+
+            // Calculate future storage with 10% annual increase
+            for (let i = 0; i < years; i++) {
+                futureStorage *= 1.10;
+            }
+
+            const chargeableStorage = futureStorage > 3000 ? futureStorage - 3000 : 0;
+            const totalCharge = chargeableStorage * 0.05;
+            const monthlyCharge = totalCharge / (years * 12);
+
+            chargeableStorageInput.value = chargeableStorage.toFixed(2);
+            totalChargeInput.value = totalCharge.toFixed(2);
+            monthlyChargeInput.value = monthlyCharge.toFixed(2);
+        };
+
+        totalStorageInput.addEventListener('input', calculateCharges);
+        yearsInput.addEventListener('input', calculateCharges);
+
+        exportBtn.addEventListener('click', () => {
+            const serverName = document.getElementById('serverName').value;
+            const totalStorage = totalStorageInput.value;
+            const years = yearsInput.value;
+            const chargeableStorage = chargeableStorageInput.value;
+            const totalCharge = totalChargeInput.value;
+            const monthlyCharge = monthlyChargeInput.value;
+
+            const csvContent = `Server Name,Total Storage (GB),Years,Chargeable Storage (GB),Total Charge ($),Monthly Charge ($)\n${serverName},${totalStorage},${years},${chargeableStorage},${totalCharge},${monthlyCharge}`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'backup_sizing_calculator.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
