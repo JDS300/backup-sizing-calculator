@@ -36,6 +36,15 @@
             border: none;
             cursor: pointer;
             margin-top: 10px;
+            margin-right: 10px;
+        }
+        .servers-list {
+            margin-top: 20px;
+        }
+        .server-entry {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -55,6 +64,14 @@
             <input type="number" id="years" placeholder="Enter number of years" value="1">
         </div>
         <div class="input-group">
+            <label for="growthRate">Annual Growth Rate (%):</label>
+            <input type="number" id="growthRate" placeholder="Enter growth rate" value="10">
+        </div>
+        <div class="input-group">
+            <label for="nonChargeableStorage">Non-Chargeable Storage (GB):</label>
+            <input type="number" id="nonChargeableStorage" readonly>
+        </div>
+        <div class="input-group">
             <label for="chargeableStorage">Chargeable Storage (GB):</label>
             <input type="number" id="chargeableStorage" readonly>
         </div>
@@ -66,48 +83,108 @@
             <label for="monthlyCharge">Monthly Charge ($):</label>
             <input type="number" id="monthlyCharge" readonly>
         </div>
-        <button id="exportBtn">Export to CSV</button>
+        <button id="addServerBtn">Add Server</button>
+        <button id="exportAllBtn">Export All to CSV</button>
+        <div class="servers-list" id="serversList"></div>
     </div>
 
     <script>
         const totalStorageInput = document.getElementById('totalStorage');
         const yearsInput = document.getElementById('years');
+        const growthRateInput = document.getElementById('growthRate');
+        const nonChargeableStorageInput = document.getElementById('nonChargeableStorage');
         const chargeableStorageInput = document.getElementById('chargeableStorage');
         const totalChargeInput = document.getElementById('totalCharge');
         const monthlyChargeInput = document.getElementById('monthlyCharge');
-        const exportBtn = document.getElementById('exportBtn');
+        const addServerBtn = document.getElementById('addServerBtn');
+        const exportAllBtn = document.getElementById('exportAllBtn');
+        const serversList = document.getElementById('serversList');
+
+        let servers = [];
 
         const calculateCharges = () => {
             const totalStorage = parseFloat(totalStorageInput.value);
             const years = parseInt(yearsInput.value);
+            const growthRate = parseFloat(growthRateInput.value) / 100;
             let futureStorage = totalStorage;
 
-            // Calculate future storage with 10% annual increase
+            // Calculate future storage with annual growth rate
             for (let i = 0; i < years; i++) {
-                futureStorage *= 1.10;
+                futureStorage *= 1 + growthRate;
             }
 
+            const nonChargeableStorage = futureStorage <= 3000 ? futureStorage : 3000;
             const chargeableStorage = futureStorage > 3000 ? futureStorage - 3000 : 0;
             const totalCharge = chargeableStorage * 0.05;
             const monthlyCharge = totalCharge / (years * 12);
 
+            nonChargeableStorageInput.value = nonChargeableStorage.toFixed(2);
             chargeableStorageInput.value = chargeableStorage.toFixed(2);
             totalChargeInput.value = totalCharge.toFixed(2);
             monthlyChargeInput.value = monthlyCharge.toFixed(2);
         };
 
-        totalStorageInput.addEventListener('input', calculateCharges);
-        yearsInput.addEventListener('input', calculateCharges);
-
-        exportBtn.addEventListener('click', () => {
+        const addServer = () => {
             const serverName = document.getElementById('serverName').value;
             const totalStorage = totalStorageInput.value;
             const years = yearsInput.value;
+            const growthRate = growthRateInput.value;
+            const nonChargeableStorage = nonChargeableStorageInput.value;
             const chargeableStorage = chargeableStorageInput.value;
             const totalCharge = totalChargeInput.value;
             const monthlyCharge = monthlyChargeInput.value;
 
-            const csvContent = `Server Name,Total Storage (GB),Years,Chargeable Storage (GB),Total Charge ($),Monthly Charge ($)\n${serverName},${totalStorage},${years},${chargeableStorage},${totalCharge},${monthlyCharge}`;
+            const serverData = {
+                serverName,
+                totalStorage,
+                years,
+                growthRate,
+                nonChargeableStorage,
+                chargeableStorage,
+                totalCharge,
+                monthlyCharge
+            };
+
+            servers.push(serverData);
+            displayServers();
+            clearInputs();
+        };
+
+        const displayServers = () => {
+            serversList.innerHTML = '';
+            servers.forEach((server, index) => {
+                const serverEntry = document.createElement('div');
+                serverEntry.classList.add('server-entry');
+                serverEntry.innerHTML = `
+                    <strong>Server Name:</strong> ${server.serverName}<br>
+                    <strong>Total Storage (GB):</strong> ${server.totalStorage}<br>
+                    <strong>Years:</strong> ${server.years}<br>
+                    <strong>Growth Rate (%):</strong> ${server.growthRate}<br>
+                    <strong>Non-Chargeable Storage (GB):</strong> ${server.nonChargeableStorage}<br>
+                    <strong>Chargeable Storage (GB):</strong> ${server.chargeableStorage}<br>
+                    <strong>Total Charge ($):</strong> ${server.totalCharge}<br>
+                    <strong>Monthly Charge ($):</strong> ${server.monthlyCharge}
+                `;
+                serversList.appendChild(serverEntry);
+            });
+        };
+
+        const clearInputs = () => {
+            document.getElementById('serverName').value = '';
+            totalStorageInput.value = '';
+            yearsInput.value = '1';
+            growthRateInput.value = '10';
+            nonChargeableStorageInput.value = '';
+            chargeableStorageInput.value = '';
+            totalChargeInput.value = '';
+            monthlyChargeInput.value = '';
+        };
+
+        const exportAllToCSV = () => {
+            let csvContent = 'Server Name,Total Storage (GB),Years,Growth Rate (%),Non-Chargeable Storage (GB),Chargeable Storage (GB),Total Charge ($),Monthly Charge ($)\n';
+            servers.forEach(server => {
+                csvContent += `${server.serverName},${server.totalStorage},${server.years},${server.growthRate},${server.nonChargeableStorage},${server.chargeableStorage},${server.totalCharge},${server.monthlyCharge}\n`;
+            });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -118,7 +195,13 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        });
+        };
+
+        totalStorageInput.addEventListener('input', calculateCharges);
+        yearsInput.addEventListener('input', calculateCharges);
+        growthRateInput.addEventListener('input', calculateCharges);
+        addServerBtn.addEventListener('click', addServer);
+        exportAllBtn.addEventListener('click', exportAllToCSV);
     </script>
 </body>
 </html>
