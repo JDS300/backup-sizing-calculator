@@ -46,6 +46,18 @@
             border: 1px solid #ddd;
             margin-bottom: 10px;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -56,12 +68,8 @@
             <input type="text" id="serverName" placeholder="Enter server name">
         </div>
         <div class="input-group">
-            <label for="totalStorage">Total Storage (GB):</label>
-            <input type="number" id="totalStorage" placeholder="Enter total storage in GB">
-        </div>
-        <div class="input-group">
-            <label for="years">Number of Years:</label>
-            <input type="number" id="years" placeholder="Enter number of years" value="1">
+            <label for="currentStorage">Current Storage (GB):</label>
+            <input type="number" id="currentStorage" placeholder="Enter current storage in GB">
         </div>
         <div class="input-group">
             <label for="growthRate">Annual Growth Rate (%):</label>
@@ -84,39 +92,59 @@
             <input type="number" id="monthlyCharge" readonly>
         </div>
         <button id="addServerBtn">Add Server</button>
+        <button id="clearBtn">Clear All Servers</button>
         <button id="exportAllBtn">Export All to CSV</button>
         <div class="servers-list" id="serversList"></div>
+        <table id="growthTable">
+            <thead>
+                <tr>
+                    <th>Server Name</th>
+                    <th>Year 1 (GB)</th>
+                    <th>Year 2 (GB)</th>
+                    <th>Year 3 (GB)</th>
+                    <th>Year 4 (GB)</th>
+                    <th>Year 5 (GB)</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
     </div>
 
     <script>
-        const totalStorageInput = document.getElementById('totalStorage');
-        const yearsInput = document.getElementById('years');
+        const currentStorageInput = document.getElementById('currentStorage');
         const growthRateInput = document.getElementById('growthRate');
         const nonChargeableStorageInput = document.getElementById('nonChargeableStorage');
         const chargeableStorageInput = document.getElementById('chargeableStorage');
         const totalChargeInput = document.getElementById('totalCharge');
         const monthlyChargeInput = document.getElementById('monthlyCharge');
         const addServerBtn = document.getElementById('addServerBtn');
+        const clearBtn = document.getElementById('clearBtn');
         const exportAllBtn = document.getElementById('exportAllBtn');
         const serversList = document.getElementById('serversList');
+        const growthTableBody = document.getElementById('growthTable').querySelector('tbody');
 
         let servers = [];
 
         const calculateCharges = () => {
-            const totalStorage = parseFloat(totalStorageInput.value);
-            const years = parseInt(yearsInput.value);
-            const growthRate = parseFloat(growthRateInput.value) / 100;
-            let futureStorage = totalStorage;
+            let totalStorage = 0;
+            let totalStorageWithGrowth = 0;
 
-            // Calculate future storage with annual growth rate
-            for (let i = 0; i < years; i++) {
-                futureStorage *= 1 + growthRate;
-            }
+            servers.forEach(server => {
+                let serverStorage = parseFloat(server.currentStorage);
+                for (let i = 0; i < 5; i++) {
+                    serverStorage *= 1 + parseFloat(server.growthRate) / 100;
+                    if (i + 1 === 5) {
+                        totalStorageWithGrowth += serverStorage;
+                    }
+                }
+                totalStorage += parseFloat(server.currentStorage);
+            });
 
-            const nonChargeableStorage = futureStorage <= 3000 ? futureStorage : 3000;
-            const chargeableStorage = futureStorage > 3000 ? futureStorage - 3000 : 0;
+            const nonChargeableStorage = totalStorageWithGrowth <= 3000 ? totalStorageWithGrowth : 3000;
+            const chargeableStorage = totalStorageWithGrowth > 3000 ? totalStorageWithGrowth - 3000 : 0;
             const totalCharge = chargeableStorage * 0.05;
-            const monthlyCharge = totalCharge / (years * 12);
+            const monthlyCharge = totalCharge / (5 * 12);
 
             nonChargeableStorageInput.value = nonChargeableStorage.toFixed(2);
             chargeableStorageInput.value = chargeableStorage.toFixed(2);
@@ -126,64 +154,65 @@
 
         const addServer = () => {
             const serverName = document.getElementById('serverName').value;
-            const totalStorage = totalStorageInput.value;
-            const years = yearsInput.value;
+            const currentStorage = currentStorageInput.value;
             const growthRate = growthRateInput.value;
-            const nonChargeableStorage = nonChargeableStorageInput.value;
-            const chargeableStorage = chargeableStorageInput.value;
-            const totalCharge = totalChargeInput.value;
-            const monthlyCharge = monthlyChargeInput.value;
 
             const serverData = {
                 serverName,
-                totalStorage,
-                years,
-                growthRate,
-                nonChargeableStorage,
-                chargeableStorage,
-                totalCharge,
-                monthlyCharge
+                currentStorage,
+                growthRate
             };
 
             servers.push(serverData);
             displayServers();
             clearInputs();
+            calculateCharges(); // Recalculate the charges after adding a server
+            displayGrowthTable();
         };
 
         const displayServers = () => {
             serversList.innerHTML = '';
-            servers.forEach((server, index) => {
+            servers.forEach(server => {
                 const serverEntry = document.createElement('div');
                 serverEntry.classList.add('server-entry');
                 serverEntry.innerHTML = `
                     <strong>Server Name:</strong> ${server.serverName}<br>
-                    <strong>Total Storage (GB):</strong> ${server.totalStorage}<br>
-                    <strong>Years:</strong> ${server.years}<br>
-                    <strong>Growth Rate (%):</strong> ${server.growthRate}<br>
-                    <strong>Non-Chargeable Storage (GB):</strong> ${server.nonChargeableStorage}<br>
-                    <strong>Chargeable Storage (GB):</strong> ${server.chargeableStorage}<br>
-                    <strong>Total Charge ($):</strong> ${server.totalCharge}<br>
-                    <strong>Monthly Charge ($):</strong> ${server.monthlyCharge}
+                    <strong>Current Storage (GB):</strong> ${server.currentStorage}<br>
+                    <strong>Growth Rate (%):</strong> ${server.growthRate}
                 `;
                 serversList.appendChild(serverEntry);
             });
         };
 
+        const displayGrowthTable = () => {
+            growthTableBody.innerHTML = '';
+            servers.forEach(server => {
+                let row = document.createElement('tr');
+                let serverStorage = parseFloat(server.currentStorage);
+                row.innerHTML = `<td>${server.serverName}</td>`;
+                for (let i = 0; i < 5; i++) {
+                    serverStorage *= 1 + parseFloat(server.growthRate) / 100;
+                    row.innerHTML += `<td>${serverStorage.toFixed(2)}</td>`;
+                }
+                growthTableBody.appendChild(row);
+            });
+        };
+
         const clearInputs = () => {
             document.getElementById('serverName').value = '';
-            totalStorageInput.value = '';
-            yearsInput.value = '1';
+            currentStorageInput.value = '';
             growthRateInput.value = '10';
-            nonChargeableStorageInput.value = '';
-            chargeableStorageInput.value = '';
-            totalChargeInput.value = '';
-            monthlyChargeInput.value = '';
         };
 
         const exportAllToCSV = () => {
-            let csvContent = 'Server Name,Total Storage (GB),Years,Growth Rate (%),Non-Chargeable Storage (GB),Chargeable Storage (GB),Total Charge ($),Monthly Charge ($)\n';
+            let csvContent = 'Server Name,Current Storage (GB),Growth Rate (%),Year 1 (GB),Year 2 (GB),Year 3 (GB),Year 4 (GB),Year 5 (GB),Non-Chargeable Storage (GB),Chargeable Storage (GB),Total Charge ($),Monthly Charge ($)\n';
             servers.forEach(server => {
-                csvContent += `${server.serverName},${server.totalStorage},${server.years},${server.growthRate},${server.nonChargeableStorage},${server.chargeableStorage},${server.totalCharge},${server.monthlyCharge}\n`;
+                let year1 = (server.currentStorage * Math.pow(1 + server.growthRate / 100, 1)).toFixed(2);
+                let year2 = (server.currentStorage * Math.pow(1 + server.growthRate / 100, 2)).toFixed(2);
+                let year3 = (server.currentStorage * Math.pow(1 + server.growthRate / 100, 3)).toFixed(2);
+                let year4 = (server.currentStorage * Math.pow(1 + server.growthRate / 100, 4)).toFixed(2);
+                let year5 = (server.currentStorage * Math.pow(1 + server.growthRate / 100, 5)).toFixed(2);
+                csvContent += `${server.serverName},${server.currentStorage},${server.growthRate},${year1},${year2},${year3},${year4},${year5},${nonChargeableStorageInput.value},${chargeableStorageInput.value},${totalChargeInput.value},${monthlyChargeInput.value}\n`;
             });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -195,12 +224,30 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+
+            // Clear stored server data
+            servers = [];
+            displayServers(); // Optional: Clear displayed server list
+            clearCharges(); // Clear the charge fields
+            displayGrowthTable(); // Clear the growth table
         };
 
-        totalStorageInput.addEventListener('input', calculateCharges);
-        yearsInput.addEventListener('input', calculateCharges);
-        growthRateInput.addEventListener('input', calculateCharges);
+        const clearAllServers = () => {
+            servers = [];
+            displayServers();
+            clearCharges();
+            displayGrowthTable();
+        };
+
+        const clearCharges = () => {
+            nonChargeableStorageInput.value = '';
+            chargeableStorageInput.value = '';
+            totalChargeInput.value = '';
+            monthlyChargeInput.value = '';
+        };
+
         addServerBtn.addEventListener('click', addServer);
+        clearBtn.addEventListener('click', clearAllServers);
         exportAllBtn.addEventListener('click', exportAllToCSV);
     </script>
 </body>
